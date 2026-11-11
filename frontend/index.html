@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Landing Site Navigator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --bg-void: #020408;
+            --surface-glass: rgba(10, 16, 26, 0.7);
+            --surface-glass-hover: rgba(18, 26, 40, 0.8);
+            --border-glass: rgba(255, 255, 255, 0.07);
+            --border-active: rgba(56, 189, 248, 0.4);
+            --cyan-primary: #38bdf8;
+            --cyan-glow: rgba(56, 189, 248, 0.25);
+            --emerald-primary: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --rose-primary: #f43f5e;
+            --amber-primary: #f59e0b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --font-display: 'Space Grotesk', system-ui, sans-serif;
+            --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-void);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+        }
+
+        header {
+            height: 64px;
+            padding: 0 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(2, 4, 8, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .gap {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #e2e8f0 0%, #64748b 70%, #1e293b 100%);
+            box-shadow: 0 0 16px rgba(226, 232, 240, 0.3);
+            position: relative;
+        }
+
+        .brand-icon::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            border: 1px solid var(--cyan-primary);
+            opacity: 0.5;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #ffffff 30%, var(--cyan-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-clock {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: rgba(2, 4, 8, 0.6);
+            border: 1px solid var(--border-glass);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            letter-spacing: 1px;
+        }
+
+        .header-clock span {
+            color: var(--cyan-primary);
+            font-weight: 700;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 340px 1fr 380px;
+            grid-template-rows: minmax(460px, 1fr) 210px;
+            gap: 1.25rem;
+            padding: 1.25rem;
+            max-width: 1920px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .glass-panel {
+            background: var(--surface-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .panel-title {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--cyan-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--cyan-primary);
+            border-radius: 1px;
+            box-shadow: 0 0 8px var(--cyan-primary);
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: rgba(2, 4, 8, 0.6);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn.active {
+            background: var(--cyan-primary);
+            color: #020408;
+            font-weight: 700;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(2, 4, 8, 0.6);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 0.75rem 0.9rem;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--cyan-primary);
+            box-shadow: 0 0 0 3px var(--cyan-glow);
+        }
+
+        select.form-control option {
+            background: #0a101a;
+            color: var(--text-primary);
+        }
+
+        .range-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--cyan-primary);
+            cursor: pointer;
+            box-shadow: 0 0 12px var(--cyan-primary);
+            transition: transform 0.1s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cyan-primary) 0%, #0284c7 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.85rem;
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 0.875rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px var(--cyan-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: auto;
+        }
+
+        .btn-secondary {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--cyan-primary);
+            border: 1px solid var(--border-active);
+            border-radius: 6px;
+            padding: 0.35rem 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--cyan-glow);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .viewport-panel {
+            grid-column: 2;
+            padding: 0;
+            position: relative;
+            min-height: 400px;
+        }
+
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            display: block;
+        }
+
+        .viewport-hud {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        .hud-card {
+            background: rgba(2, 4, 8, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            pointer-events: auto;
+        }
+
+        .hud-val {
+            color: var(--cyan-primary);
+            font-weight: 700;
+        }
+
+        .score-container {
+            align-items: center;
+            display: flex;
+            gap: 1.25rem;
+            background: rgba(2, 4, 8, 0.4);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .radial-progress {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+
+        .radial-progress svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .radial-progress circle {
+            fill: none;
+            stroke-width: 6;
+            stroke-dasharray: 220;
+            stroke-dashoffset: 220;
+            transition: stroke-dashoffset 1s ease-in-out, stroke 0.3s ease;
+            stroke-linecap: round;
+        }
+
+        .radial-progress .bg-ring {
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-dashoffset: 0;
+        }
+
+        .radial-progress .meter {
+            stroke: var(--cyan-primary);
+        }
+
+        .score-num {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .score-details h3 {
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .score-details p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .telemetry-card {
+            background: rgba(2, 4, 8, 0.4);
+            border-radius: 10px;
+            border: 1px solid var(--border-glass);
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .telemetry-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(10, 16, 26, 0.6);
+        }
+
+        .t-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .t-val {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .timeline-panel {
+            grid-column: 1 / -1;
+            grid-row: 2;
+        }
+
+        .timeline-container {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            gap: 6px;
+            height: 110px;
+            align-items: flex-end;
+            padding-top: 1rem;
+            width: 100%;
+        }
+
+        .timeline-node {
+            height: 100%;
+            background: rgba(2, 4, 8, 0.5);
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0.35rem 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .timeline-node:hover {
+            border-color: var(--cyan-primary);
+            transform: translateY(-2px);
+        }
+
+        .timeline-node.active {
+            border-color: var(--cyan-primary);
+            background: rgba(56, 189, 248, 0.1);
+            box-shadow: 0 0 12px var(--cyan-glow);
+        }
+
+        .timeline-fill {
+            width: 60%;
+            border-radius: 3px;
+            background: var(--cyan-primary);
+            transition: height 0.3s ease;
+            min-height: 4px;
+        }
+
+        .timeline-fill.power-on {
+            background: var(--emerald-primary);
+            box-shadow: 0 0 8px var(--emerald-glow);
+        }
+
+        .timeline-node .hour-text {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 0.4rem;
+        }
+
+        .timeline-node.active .hour-text {
+            color: var(--cyan-primary);
+            font-weight: 700;
+        }
+
+        @media (max-width: 1200px) {
+            main {
+                grid-template-columns: 300px 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            .viewport-panel {
+                grid-column: 2;
+                min-height: 450px;
+            }
+            .telemetry-panel {
+                grid-column: 1 / -1;
+            }
+            .timeline-panel {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            main {
+                grid-template-columns: 1fr;
+                padding: 0.75rem;
+            }
+            .viewport-panel {
+                grid-column: 1;
+                min-height: 350px;
+            }
+            header {
+                padding: 0 1rem;
+            }
+            .timeline-container {
+                gap: 2px;
+            }
+            .timeline-node .hour-text {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="gap">
+            <div class="brand-icon"></div>
+            <span class="brand-title">LUNAR NAVIGATOR</span>
+        </div>
+        <div class="header-clock">
+            SYS TIME: <span id="header-time">UTC 12:00:00</span>
+        </div>
+    </header>
+    <main>
+        <section class="glass-panel">
+            <div class="panel-header">
+                <span class="panel-title">Mission Parameters</span>
+                <div class="mode-toggle">
+                    <button id="btn-mode-preset" class="mode-btn active">PRESETS</button>
+                    <button id="btn-mode-custom" class="mode-btn">CUSTOM</button>
+                </div>
+            </div>
+
+            <!-- PRESET SELECTION -->
+            <div id="preset-group" class="form-group">
+                <label class="form-label" for="site-select">Candidate Landing Site</label>
+                <select id="site-select" class="form-control"></select>
+            </div>
+
+            <!-- CUSTOM COORDINATES INPUT (Initially Hidden) -->
+            <div id="custom-group" class="form-group" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label" for="custom-name">Site Designation</label>
+                    <input type="text" id="custom-name" class="form-control" value="Custom Site Alpha">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="custom-lat">Latitude (°)</label>
+                        <input type="number" id="custom-lat" class="form-control" value="-88.5" step="0.1" min="-90" max="90">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="custom-lon">Longitude (°)</label>
+                        <input type="number" id="custom-lon" class="form-control" value="45.0" step="0.1" min="-180" max="360">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="custom-elev">Elevation (km)</label>
+                        <input type="number" id="custom-elev" class="form-control" value="1.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="custom-mask">Horizon (°)</label>
+                        <input type="number" id="custom-mask" class="form-control" value="1.0" step="0.1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="date-input">Evaluation Date</label>
+                <input type="date" id="date-input" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="hour-slider">
+                    <span>UTC Timestamp</span>
+                    <span id="hour-display" style="color: var(--cyan-primary); font-family: var(--font-mono);">12:00</span>
+                </label>
+                <div class="range-wrapper">
+                    <input type="range" id="hour-slider" min="0" max="23" value="12">
+                </div>
+            </div>
+            <button id="update-btn" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Sync Ephemeris Data
+            </button>
+        </section>
+
+        <section class="glass-panel viewport-panel">
+            <div id="three-canvas"></div>
+            <div class="viewport-hud">
+                <div class="hud-card">
+                    TARGET COORDINATES: <span id="hud-coords" class="hud-val">LAT --° | LON --°</span>
+                </div>
+                <div class="hud-card">
+                    ORBITAL MODE: <span class="hud-val">REAL-TIME TELEMETRY</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-panel telemetry-panel">
+            <div class="panel-header">
+                <span class="panel-title">Site Suitability Evaluation</span>
+            </div>
+            <div class="score-container">
+                <div class="radial-progress">
+                    <svg viewBox="0 0 80 80">
+                        <circle class="bg-ring" cx="40" cy="40" r="35"></circle>
+                        <circle class="meter" id="score-meter" cx="40" cy="40" r="35"></circle>
+                    </svg>
+                    <div class="score-num" id="score-val">--</div>
+                </div>
+                <div class="score-details">
+                    <h3 id="target-name">Select Target</h3>
+                    <p id="target-elev">ELEVATION: -- KM</p>
+                </div>
+            </div>
+
+            <div class="telemetry-grid">
+                <div class="telemetry-card">
+                    <span class="t-label">Sun Elevation</span>
+                    <span class="t-val" id="sun-elev">--°</span>
+                </div>
+                <div class="telemetry-card">
+                    <span class="t-label">Sun Azimuth</span>
+                    <span class="t-val" id="sun-az">--°</span>
+                </div>
+                <div class="telemetry-card">
+                    <span class="t-label">Earth Elevation</span>
+                    <span class="t-val" id="earth-elev">--°</span>
+                </div>
+                <div class="telemetry-card">
+                    <span class="t-label">LOS Margin</span>
+                    <span class="t-val" id="los-margin">--°</span>
+                </div>
+                <div class="telemetry-card">
+                    <span class="t-label">Earth Azimuth</span>
+                    <span class="t-val" id="earth-az">--°</span>
+                </div>
+                <div class="telemetry-card">
+                    <span class="t-label">Horizon Mask</span>
+                    <span class="t-val" id="horizon-mask">--°</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-panel timeline-panel">
+            <div class="panel-header">
+                <span class="panel-title">24-Hour Operations Forecast</span>
+                <button id="export-csv-btn" class="btn-secondary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export CSV
+                </button>
+            </div>
+            <div class="timeline-container" id="timeline-track"></div>
+        </section>
+    </main>
+
+    <script>
+        const LOCAL_SITES = [
+            { id: "shackleton", name: "Shackleton Crater Rim", latitude: -89.9, longitude: 0.0, elevationKm: 1.2, horizonMask: 1.5 },
+            { id: "connecting-ridge", name: "Connecting Ridge", latitude: -89.4, longitude: 222.0, elevationKm: 0.8, horizonMask: 2.1 },
+            { id: "malapert", name: "Malapert Mountain", latitude: -86.0, longitude: 2.7, elevationKm: 5.0, horizonMask: -0.5 },
+            { id: "haworth", name: "Haworth Crater Rim", latitude: -87.4, longitude: -5.1, elevationKm: -0.5, horizonMask: 3.2 }
+        ];
+
+        let scene, camera, renderer, moonMesh, markerMesh, controls;
+        let isCustomMode = false;
+        let currentTelemetryData = null;
+
+        const siteSelect = document.getElementById("site-select");
+        const dateInput = document.getElementById("date-input");
+        const hourSlider = document.getElementById("hour-slider");
+        const hourDisplay = document.getElementById("hour-display");
+        const updateBtn = document.getElementById("update-btn");
+        const scoreVal = document.getElementById("score-val");
+        const scoreMeter = document.getElementById("score-meter");
+        const targetName = document.getElementById("target-name");
+        const targetElev = document.getElementById("target-elev");
+        const hudCoords = document.getElementById("hud-coords");
+        const sunElev = document.getElementById("sun-elev");
+        const sunAz = document.getElementById("sun-az");
+        const earthElev = document.getElementById("earth-elev");
+        const losMargin = document.getElementById("los-margin");
+        const earthAz = document.getElementById("earth-az");
+        const horizonMask = document.getElementById("horizon-mask");
+        const headerTime = document.getElementById("header-time");
+        const timelineTrack = document.getElementById("timeline-track");
+        const exportCsvBtn = document.getElementById("export-csv-btn");
+
+        const btnModePreset = document.getElementById("btn-mode-preset");
+        const btnModeCustom = document.getElementById("btn-mode-custom");
+        const presetGroup = document.getElementById("preset-group");
+        const customGroup = document.getElementById("custom-group");
+
+        const customName = document.getElementById("custom-name");
+        const customLat = document.getElementById("custom-lat");
+        const customLon = document.getElementById("custom-lon");
+        const customElev = document.getElementById("custom-elev");
+        const customMask = document.getElementById("custom-mask");
+
+        dateInput.value = new Date().toISOString().split('T')[0];
+
+        function init() {
+            init3D();
+            populateSites(LOCAL_SITES);
+
+            btnModePreset.addEventListener("click", () => setInputMode(false));
+            btnModeCustom.addEventListener("click", () => setInputMode(true));
+
+            hourSlider.addEventListener("input", (e) => {
+                const val = String(e.target.value).padStart(2, '0');
+                hourDisplay.textContent = `${val}:00`;
+                headerTime.textContent = `UTC ${val}:00:00`;
+                loadTelemetry();
+            });
+
+            siteSelect.addEventListener("change", loadTelemetry);
+            dateInput.addEventListener("change", loadTelemetry);
+            updateBtn.addEventListener("click", loadTelemetry);
+            exportCsvBtn.addEventListener("click", exportTelemetryCSV);
+
+            loadTelemetry();
+        }
+
+        function setInputMode(custom) {
+            isCustomMode = custom;
+            if (custom) {
+                btnModeCustom.classList.add("active");
+                btnModePreset.classList.remove("active");
+                presetGroup.style.display = "none";
+                customGroup.style.display = "flex";
+            } else {
+                btnModePreset.classList.add("active");
+                btnModeCustom.classList.remove("active");
+                customGroup.style.display = "none";
+                presetGroup.style.display = "flex";
+            }
+            loadTelemetry();
+        }
+
+        function populateSites(sites) {
+            siteSelect.innerHTML = "";
+            sites.forEach(site => {
+                const opt = document.createElement("option");
+                opt.value = site.id;
+                opt.textContent = site.name;
+                siteSelect.appendChild(opt);
+            });
+        }
+
+        function loadTelemetry() {
+            const date = dateInput.value;
+            const hour = parseInt(hourSlider.value);
+            let site;
+
+            if (isCustomMode) {
+                site = {
+                    id: "custom",
+                    name: customName.value || "Custom Site",
+                    latitude: parseFloat(customLat.value) || 0,
+                    longitude: parseFloat(customLon.value) || 0,
+                    elevationKm: parseFloat(customElev.value) || 0,
+                    horizonMask: parseFloat(customMask.value) || 0
+                };
+            } else {
+                const siteId = siteSelect.value;
+                site = LOCAL_SITES.find(s => s.id === siteId) || LOCAL_SITES[0];
+            }
+
+            currentTelemetryData = calculateLocalTelemetry(site, date, hour);
+            renderTelemetry(currentTelemetryData);
+        }
+
+        function calculateLocalTelemetry(site, dateStr, hour) {
+            const date = dateStr ? new Date(dateStr) : new Date();
+            date.setUTCHours(hour);
+
+            const epochSec = date.getTime() / 1000;
+            const dayOffset = (epochSec - 1700000000) / 86400.0;
+
+            const subSolarLat = 1.54 * Math.sin(((dayOffset / 29.53) * 360) * Math.PI / 180);
+            const subSolarLon = ((dayOffset / 29.53) * 360) % 360;
+            const subEarthLat = 6.68 * Math.sin(((dayOffset / 27.21) * 360) * Math.PI / 180);
+            const subEarthLon = 8.02 * Math.sin(((dayOffset / 27.55) * 360) * Math.PI / 180);
+
+            const sElev = calcElevation(site.latitude, site.longitude, subSolarLat, subSolarLon);
+            const sAz = calcAzimuth(site.latitude, site.longitude, subSolarLat, subSolarLon);
+            const eElev = calcElevation(site.latitude, site.longitude, subEarthLat, subEarthLon);
+            const eAz = calcAzimuth(site.latitude, site.longitude, subEarthLat, subEarthLon);
+
+            const solarPower = sElev > site.horizonMask;
+            const commActive = eElev > 0.5;
+            const losMarginDeg = Math.round((eElev - 0.5) * 100) / 100;
+            const score = Math.max(5, Math.min(100, Math.round(Math.max(0, (sElev - site.horizonMask) * 8) + Math.max(0, eElev * 6) + Math.max(0, site.elevationKm * 3) + 40)));
+
+            const dayForecast = [];
+            for (let h = 0; h < 24; h++) {
+                const fDate = dateStr ? new Date(dateStr) : new Date();
+                fDate.setUTCHours(h);
+                const fEpoch = fDate.getTime() / 1000;
+                const fDayOffset = (fEpoch - 1700000000) / 86400.0;
+                const fSubSolarLat = 1.54 * Math.sin(((fDayOffset / 29.53) * 360) * Math.PI / 180);
+                const fSubSolarLon = ((fDayOffset / 29.53) * 360) % 360;
+                const fSubEarthLat = 6.68 * Math.sin(((fDayOffset / 27.21) * 360) * Math.PI / 180);
+                const fSubEarthLon = 8.02 * Math.sin(((fDayOffset / 27.55) * 360) * Math.PI / 180);
+
+                const fSElev = calcElevation(site.latitude, site.longitude, fSubSolarLat, fSubSolarLon);
+                const fEElev = calcElevation(site.latitude, site.longitude, fSubEarthLat, fSubEarthLon);
+
+                dayForecast.push({
+                    hour: h,
+                    sunElevation: Math.round(fSElev * 10) / 10,
+                    earthElevation: Math.round(fEElev * 10) / 10,
+                    power: fSElev > site.horizonMask,
+                    comm: fEElev > 0.5
+                });
+            }
+
+            return {
+                siteId: site.id,
+                siteName: site.name,
+                longitude: site.longitude,
+                latitude: site.latitude,
+                elevationKm: site.elevationKm,
+                horizonMask: site.horizonMask,
+                sunElevationAngle: Math.round(sElev * 100) / 100,
+                sunAzimuthAngle: Math.round(sAz * 100) / 100,
+                earthElevationAngle: Math.round(eElev * 100) / 100,
+                earthAzimuthAngle: Math.round(eAz * 100) / 100,
+                solarPowerAvailable: solarPower,
+                directToEarthCommActive: commActive,
+                lineOfSightMarginDeg: losMarginDeg,
+                suitabilityScore: score,
+                dayForecast: dayForecast
+            };
+        }
+
+        function calcElevation(lat1, lon1, lat2, lon2) {
+            const phi1 = lat1 * Math.PI / 180;
+            const phi2 = lat2 * Math.PI / 180;
+            const dLambda = (lon2 - lon1) * Math.PI / 180;
+            let cosZ = Math.sin(phi1) * Math.sin(phi2) + Math.cos(phi1) * Math.cos(phi2) * Math.cos(dLambda);
+            cosZ = Math.max(-1.0, Math.min(1.0, cosZ));
+            return 90.0 - (Math.acos(cosZ) * 180 / Math.PI);
+        }
+
+        function calcAzimuth(lat1, lon1, lat2, lon2) {
+            const phi1 = lat1 * Math.PI / 180;
+            const phi2 = lat2 * Math.PI / 180;
+            const dLambda = (lon2 - lon1) * Math.PI / 180;
+            const y = Math.sin(dLambda) * Math.cos(phi2);
+            const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLambda);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        function renderTelemetry(data) {
+            scoreVal.textContent = data.suitabilityScore;
+            const offset = 220 - (220 * data.suitabilityScore) / 100;
+            scoreMeter.style.strokeDashoffset = offset;
+
+            targetName.textContent = data.siteName;
+            targetElev.textContent = `ELEVATION: ${data.elevationKm} KM`;
+            hudCoords.textContent = `LAT ${data.latitude}° | LON ${data.longitude}°`;
+
+            sunElev.textContent = `${data.sunElevationAngle}°`;
+            sunAz.textContent = `${data.sunAzimuthAngle}°`;
+            earthElev.textContent = `${data.earthElevationAngle}°`;
+            losMargin.textContent = `${data.lineOfSightMarginDeg}°`;
+            earthAz.textContent = `${data.earthAzimuthAngle}°`;
+            horizonMask.textContent = `${data.horizonMask}°`;
+
+            renderTimeline(data.dayForecast);
+            update3DMarker(data.latitude, data.longitude);
+        }
+
+        function renderTimeline(forecast) {
+            timelineTrack.innerHTML = "";
+            const currentHour = parseInt(hourSlider.value);
+
+            forecast.forEach(item => {
+                const node = document.createElement("div");
+                node.className = `timeline-node ${item.hour === currentHour ? 'active' : ''}`;
+                
+                const fill = document.createElement("div");
+                fill.className = `timeline-fill ${item.power ? 'power-on' : ''}`;
+                const heightPct = Math.max(10, Math.min(100, (item.sunElevation + 15) * 3));
+                fill.style.height = `${heightPct}%`;
+
+                const label = document.createElement("span");
+                label.className = "hour-text";
+                label.textContent = `${String(item.hour).padStart(2, '0')}`;
+
+                node.appendChild(fill);
+                node.appendChild(label);
+
+                node.addEventListener("click", () => {
+                    hourSlider.value = item.hour;
+                    hourDisplay.textContent = `${String(item.hour).padStart(2, '0')}:00`;
+                    headerTime.textContent = `UTC ${String(item.hour).padStart(2, '0')}:00:00`;
+                    loadTelemetry();
+                });
+
+                timelineTrack.appendChild(node);
+            });
+        }
+
+        function exportTelemetryCSV() {
+            if (!currentTelemetryData) return;
+
+            const date = dateInput.value;
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += `Lunar Landing Site Telemetry Export\n`;
+            csvContent += `Site Name,${currentTelemetryData.siteName}\n`;
+            csvContent += `Latitude,${currentTelemetryData.latitude}\n`;
+            csvContent += `Longitude,${currentTelemetryData.longitude}\n`;
+            csvContent += `Elevation (km),${currentTelemetryData.elevationKm}\n`;
+            csvContent += `Evaluation Date,${date}\n\n`;
+
+            csvContent += `Hour (UTC),Sun Elevation (°),Earth Elevation (°),Solar Power Sunlit,Direct Comm Clear\n`;
+
+            currentTelemetryData.dayForecast.forEach(row => {
+                csvContent += `${row.hour}:00,${row.sunElevation},${row.earthElevation},${row.power ? "YES" : "NO"},${row.comm ? "YES" : "NO"}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `lunar_telemetry_${currentTelemetryData.siteId}_${date}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function init3D() {
+            const container = document.getElementById("three-canvas");
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 4.5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.rotateSpeed = 0.8;
+
+            const textureLoader = new THREE.TextureLoader();
+            const moonTexture = textureLoader.load(
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/moon_1024.jpg',
+                () => renderer.render(scene, camera)
+            );
+
+            const moonGeo = new THREE.SphereGeometry(1.6, 64, 64);
+            const moonMat = new THREE.MeshStandardMaterial({
+                map: moonTexture,
+                roughness: 0.85,
+                metalness: 0.1
+            });
+            moonMesh = new THREE.Mesh(moonGeo, moonMat);
+            scene.add(moonMesh);
+
+            const wireMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.05
+            });
+
+            const wireMesh = new THREE.Mesh(moonGeo, wireMat);
+            scene.add(wireMesh);
+
+            const markerGeo = new THREE.SphereGeometry(0.04, 16, 16);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            markerMesh = new THREE.Mesh(markerGeo, markerMat);
+            scene.add(markerMesh);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.8);
+            sunLight.position.set(6, 3, 5);
+            scene.add(sunLight);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                moonMesh.rotation.y += 0.0008;
+                wireMesh.rotation.y += 0.0008;
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener("resize", () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        }
+
+        function update3DMarker(lat, lon) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            const radius = 1.62;
+
+            markerMesh.position.x = -(radius * Math.sin(phi) * Math.cos(theta));
+            markerMesh.position.z = radius * Math.sin(phi) * Math.sin(theta);
+            markerMesh.position.y = radius * Math.cos(phi);
+        }
+
+        window.addEventListener("DOMContentLoaded", init);
+    </script>
+</body>
+</html>

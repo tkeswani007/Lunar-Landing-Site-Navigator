@@ -1,0 +1,6 @@
+com\lunar\navigator\model\SiteTelemetryDTO.class
+com\lunar\navigator\controller\LandingSiteController.class
+com\lunar\navigator\LunarApplication.class
+com\lunar\navigator\model\CandidateSiteDTO.class
+com\lunar\navigator\model\SiteTelemetryDTO$HourlyWindow.class
+com\lunar\navigator\service\LunarEphemerisService.class
